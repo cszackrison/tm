@@ -4,11 +4,115 @@
 		<meta charset="utf-8">
 		<title>Demo</title>
 		<meta name="description" content="Demo">
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				background-color: #f8f9fb;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+				width: 100%;
+			}
+			body {
+				margin: 30px;
+				width: calc(100% - 60px);
+			}
+			header {
+				background-color: #EAEDF0;
+				font-weight: bold;
+				padding: 10px;
+				width: 100%;
+			}
+			img {
+				display: block;
+				margin: 0 auto 0 20px;
+				width: auto;
+			}
+			input {
+				left: 0;
+				margin: 8px;
+				position: absolute;
+				top: 0;
+			}
+			li {
+				background-color: #fff;
+				box-shadow: 0 1px 2px #bbb, 0 0 1px #ddd;
+				border-radius: 2px;
+				display: flex;
+				flex-direction: column;
+		    	list-style-type: none;
+				margin-bottom: 10px;
+				padding: 5px 25px 6px 10px;
+				position: relative;
+				text-indent: 0;
+			}
+			span {
+				margin-left: 20px;
+			}
+			ul {
+				background: linear-gradient(#EAEDF0 30px, #DDE1E5 90px);
+				list-style-position: outside;
+				padding: 10px;
+			}
+		</style>
 	</head>
 	<body>
-		<div>hello world!</div>
+		<header></header>
+		<ul></ul>
+		<footer>scott</footer>
 	</body>
 	<script type="text/javascript">
-		
+		const getTasks = async (boardId) => {
+			if (boardId) {
+				const response = await fetch(`/api/tasks/${boardId}`);
+				if (response.ok) {
+					const data = await response.json();
+					return data.tasks;
+				}
+			}
+			return [];
+		}
+
+		const init = async () => {
+			const params = new URLSearchParams(document.location.search.substring(1));
+			const boardId = params.get("boardId");
+			const tasks = await getTasks(boardId);
+			updateHeader(boardId);
+			updateTasks(tasks);
+		};
+
+		const updateHeader = (boardId) => {
+			document.querySelector('header').innerHTML = boardId;
+		};
+
+		const updateTasks = (tasks = []) => {
+			tasks.forEach(({ task, images }, i) => {
+				const li = document.createElement('li');
+
+				const input = document.createElement('input')
+				input.type = 'checkbox';
+				li.appendChild(input);
+
+				const span = document.createElement('span');
+				span.textContent = task;
+				li.appendChild(span);
+
+				const imageArray = images.split(',');
+				imageArray.forEach(src => {
+					if (src) {
+						const img = document.createElement('img');
+						img.src = src;
+						li.appendChild(img);
+					}
+				});
+
+				document.querySelector('ul').appendChild(li);
+			});
+		};
+
+		init();
 	</script>
 </html>
