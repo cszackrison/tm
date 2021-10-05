@@ -17,25 +17,52 @@
 				width: 100%;
 			}
 			body {
-				margin: 30px;
+				padding: 30px 0;
+			}
+			#app {
+				align-items: flex-start;
+				display: flex;
+				height: calc(100% - 30px);
+				margin: 0 30px;
+				overflow-x: auto;
+				overflow-y: hidden;
 				width: calc(100% - 60px);
+			}
+			.dragging {
+				pointer-events: none;
+				transition: none;
+				z-index: 1;
+			}
+			.drag-over {
+				box-shadow: inset 0 2px 2px 0 rgb(0 0 0 / 14%), inset 0 3px 1px -2px rgb(0 0 0 / 12%), inset 0 1px 5px 0 rgb(0 0 0 / 20%);
 			}
 			header {
 				background-color: #EAEDF0;
 				font-weight: bold;
+				margin: 0 30px;
 				padding: 10px;
-				width: 100%;
+				user-select: none;
+				width: calc(100% - 60px);
 			}
 			img {
 				display: block;
-				margin: 0 auto 0 20px;
+				margin: 0 auto 0 0;
+				max-width: 100%;
+				pointer-events: none;
+				user-select: none;
 				width: auto;
 			}
-			input {
-				left: 0;
-				margin: 8px;
-				position: absolute;
-				top: 0;
+			textarea > *,
+			textarea {
+				background-color: transparent;
+				border: none;
+				resize: none;
+				pointer-events: none;
+				user-select: none;
+			}
+			textarea:enabled {
+				user-select: all;
+				pointer-events: all;
 			}
 			li {
 				background-color: #fff;
@@ -48,21 +75,37 @@
 				padding: 5px 25px 6px 10px;
 				position: relative;
 				text-indent: 0;
+				transform: translate(0, 0);
+				transition: transform .2s ease;
 			}
-			span {
-				margin-left: 20px;
+			li:first-child {
+				margin-top: 30px;
 			}
 			ul {
 				background: linear-gradient(#EAEDF0 30px, #DDE1E5 90px);
+				flex-shrink: 0;
 				list-style-position: outside;
+				margin-right: 20px;
 				padding: 10px;
+				position: relative;
+				width: 18%;
+			}
+			ul:last-child {
+				margin-right: 0;
+			}
+			ul::before {
+				content: attr(data-id);
+				font-weight: bold;
+				left: 0;
+				padding: 10px;
+				position: absolute;
+				top: 0;
 			}
 		</style>
 	</head>
 	<body>
 		<header></header>
-		<ul></ul>
-		<footer>scott</footer>
+		<div id='app'></div>
 	</body>
 	<script type="text/javascript">
 		const getTasks = async (boardId) => {
@@ -81,24 +124,32 @@
 			const boardId = params.get("boardId");
 			const tasks = await getTasks(boardId);
 			updateHeader(boardId);
-			updateTasks(tasks);
+			updateBoard(tasks);
 		};
 
 		const updateHeader = (boardId) => {
 			document.querySelector('header').innerHTML = boardId;
 		};
 
-		const updateTasks = (tasks = []) => {
-			tasks.forEach(({ task, images }, i) => {
+		const updateBoard = (tasks = []) => {
+			const createList = (listId) => {
+				const ul = document.createElement('ul');
+				ul.setAttribute('id', formatId(listId));
+				ul.setAttribute('data-id', listId);
+				document.querySelector('#app').appendChild(ul);
+			};
+
+			const createTask = ({ listId = 'new', task, images, id }, i) => {
+				if (!listId) { listId = 'new' }
 				const li = document.createElement('li');
+				li.setAttribute('data-id', id);
+				li.addEventListener('dblclick', handleDoubleClick);
+				li.addEventListener('mousedown', handleMouseDown);
 
-				const input = document.createElement('input')
-				input.type = 'checkbox';
-				li.appendChild(input);
-
-				const span = document.createElement('span');
-				span.textContent = task;
-				li.appendChild(span);
+				const textarea = document.createElement('textarea');
+				textarea.textContent = task;
+				textarea.setAttribute('disabled', true);
+				li.appendChild(textarea);
 
 				const imageArray = images.split(',');
 				imageArray.forEach(src => {
@@ -109,9 +160,92 @@
 					}
 				});
 
-				document.querySelector('ul').appendChild(li);
-			});
+				if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
+					createList(listId);
+				}
+
+				document.querySelector(`#${formatId(listId)}`).appendChild(li);
+			};
+
+			const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
+			lists.forEach(createList);
+			tasks.sort((a, b) => a.task - b.task);
+			tasks.forEach(createTask);
 		};
+
+		const formatId = (id) => {
+			id = id.replace(' ', '_');
+			return id;
+		};
+
+		const handleMouseDown = (e) => {
+			e.currentTarget.setAttribute('class', 'dragging');
+
+			const rect = e.currentTarget.getBoundingClientRect();
+			offsetX = rect.left;
+			offsetY = rect.top;
+			relX = e.clientX - rect.left;
+			relY = e.clientY - rect.top;
+
+			window.addEventListener('mousemove', handleMouseMove);
+			window.addEventListener('mouseup', handleMouseUp);
+		};
+
+		const handleMouseMove = (e) => {
+			const dragging = document.querySelector('.dragging');
+			const rect = dragging.getBoundingClientRect();
+			const x = e.clientX - offsetX - relX;
+			const y = e.clientY - offsetY - relY;
+			const dragOver = document.querySelector('ul:hover');
+			if (dragOver) {
+				dragOver.setAttribute('class', 'drag-over');
+			} else {
+				Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+			}
+			dragging.setAttribute('style', `transform: translate(${x}px, ${y}px) rotate(3deg)`);
+		};
+
+		const handleMouseUp = (e) => {
+			const dragging = document.querySelector('.dragging');
+			const dragOver = document.querySelector('ul:hover');
+			if (dragOver) {
+				const listId = dragOver ? dragOver.getAttribute('data-id') : null;
+				const currentListId = dragging.closest('ul').getAttribute('data-id');
+				if (currentListId !== listId) {
+					patchTask(dragging.getAttribute('data-id'), { listId });
+				}
+			}
+			dragging.removeAttribute('style');
+			dragging.removeAttribute('class');
+			Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+		};
+
+		const handleDoubleClick = (e) => {
+			console.log(e, e.target, e.currentTarget);
+			e.target.querySelector('textarea').setAttribute('disabled', false);
+		};
+
+		const patchTask = async (id, data) => {
+			const response = await fetch(`/api/task/${id}`, {
+				method: 'PATCH',
+				mode: 'cors',
+				headers: {
+				  'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (response.ok) {
+				location.reload();
+			}
+		};
+
+		let offsetX = 0;
+		let offsetY = 0;
+		let relX = 0;
+		let relY = 0;
 
 		init();
 	</script>
