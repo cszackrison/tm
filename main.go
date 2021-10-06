@@ -17,7 +17,7 @@ type Task struct {
 	BoardId string `json:"boardId"`
 	ListId string `json:"listId"`
 	Id string `json:"id"`
-	Priority float32 `json:"priority"`
+	Priority string `json:"priority"`
 }
 
 func main() {
@@ -29,14 +29,14 @@ func main() {
 	checkErr(err, "", true)
 
 	_, err = db.Exec(`insert into tasks values
-		('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', 1),
-		('2', 'hello', 'list 1', '2. scott', '', 2),
-		('3', 'hello', 'list 1a', '3. scott', '', 3),
-		('4', 'hello', 'list 2', '4. scott', '', 4),
-		('5', 'hello', 'list 3', '5. scawer awerott', '', 5),
-		('6', 'hello', 'list 4', '6. sco awer awer tt', '', 6),
-		('7', 'hello', 'list 5', 'scott awwerawerawer', '', 7),
-		('8', 'test', 'list 2', 'awesome', '', 8)
+		('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', '1'),
+		('2', 'hello', 'list 1', '2. scott', '', '2'),
+		('3', 'hello', 'list 1a', '3. scott', '', '3'),
+		('4', 'hello', 'list 2', '4. scott', '', '4'),
+		('5', 'hello', 'list 3', '5. scawer awerott', '', '5'),
+		('6', 'hello', 'list 4', '6. sco awer awer tt', '', '6'),
+		('7', 'hello', 'list 5', 'scott awwerawerawer', '', '7'),
+		('8', 'test', 'list 2', 'awesome', '', '8')
 	`)
 	checkErr(err, "", true)
 
@@ -78,12 +78,12 @@ func checkErr(err error, msg string, shouldPanic bool) {
 func postTask(c *fiber.Ctx, db *sql.DB) error {
 	body := new(Task)
 	if err := c.BodyParser(body); err != nil {
-		checkErr(err, "couln't parse body", false)
+		checkErr(err, "cannot parse body", false)
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?, ?)", uuid.New(), body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
-	checkErr(err, "coulnt't insert task into board", false)
+	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?)", uuid.New(), body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
+	checkErr(err, "cannot insert task into board", false)
 
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -93,7 +93,7 @@ func patchTask(c *fiber.Ctx, db *sql.DB) error {
 
 	body := new(Task)
 	if err := c.BodyParser(body); err != nil {
-		checkErr(err, "couln't parse body", false)
+		checkErr(err, "cannot parse body", false)
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
@@ -104,15 +104,14 @@ func patchTask(c *fiber.Ctx, db *sql.DB) error {
 	if body.Task != "" {
 	    values = append(values, fmt.Sprintf("task = '%s'", body.Task))
 	}
-	if body.Priority >= 0 || body.Priority < 0 {
-	    values = append(values, fmt.Sprintf("priority = '%f'", body.Priority))
+	if body.Priority != "" {
+	    values = append(values, fmt.Sprintf("priority = '%s'", body.Priority))
 	}
 	result := strings.Join(values, ", ")
 
 	if result != "" {
-		var execStr = fmt.Sprintf("update tasks set %s where id = '%s'", result, id);
-		_, err2 := db.Exec(execStr)
-		checkErr(err2, "coulnt't update task", false)
+		_, err2 := db.Exec(fmt.Sprintf("update tasks set %s where id = '%s'", result, id))
+		checkErr(err2, "cannot update task", false)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
@@ -121,7 +120,7 @@ func patchTask(c *fiber.Ctx, db *sql.DB) error {
 func getTasksFromBoard(c *fiber.Ctx, db *sql.DB) error {
 	var boardId = c.Params("boardId")
 	rows, err := db.Query("select * from tasks where boardId = ?", boardId)
-	checkErr(err, "coulnt't select board id", false)
+	checkErr(err, "cannot select board id", false)
 	defer rows.Close()
 
 	var tasks []Task

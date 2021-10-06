@@ -58,11 +58,12 @@
 				user-select: none;
 				width: auto;
 			}
-			textarea > *,
 			textarea {
 				background-color: transparent;
 				border: none;
+				height: 18px;
 				outline: none;
+				padding: 0;
 				pointer-events: none;
 				resize: none;
 				user-select: none;
@@ -94,7 +95,8 @@
 				flex-shrink: 0;
 				list-style-position: outside;
 				margin-right: 20px;
-				padding: 10px;
+				max-height: calc(100% - 30px);
+				padding: 40px 10px;
 				position: relative;
 				width: 18%;
 			}
@@ -109,6 +111,18 @@
 				position: absolute;
 				top: 0;
 			}
+			ul > button {
+				background: transparent;
+				border: none;
+				bottom: 0;
+				color: rgba(0, 0, 0, .2);
+				height: 30px;
+				left: 0;
+				margin: 10px;
+				position: absolute;
+				text-align: left;
+				width: calc(100% - 20px);
+			}
 		</style>
 	</head>
 	<body>
@@ -116,6 +130,11 @@
 		<div id='app'></div>
 	</body>
 	<script type="text/javascript">
+		const getBoardId = () => {
+			const params = new URLSearchParams(document.location.search.substring(1));
+			return params.get("boardId");
+		};
+
 		const getTasks = async (boardId) => {
 			if (boardId) {
 				const response = await fetch(`/api/tasks/${boardId}`);
@@ -125,7 +144,21 @@
 				}
 			}
 			return [];
-		}
+		};
+
+		const postTask = async (data) => {
+			const response = await fetch(`/api/task`, {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+				  'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (response.ok) {
+				location.reload();
+			}
+		};
 
 		const patchTask = async (id, data) => {
 			const response = await fetch(`/api/task/${id}`, {
@@ -142,72 +175,15 @@
 		};
 
 		const init = async () => {
-			const params = new URLSearchParams(document.location.search.substring(1));
-			const boardId = params.get("boardId");
+			const boardId = getBoardId();
 			const tasks = await getTasks(boardId);
-			updateHeader(boardId);
-			updateBoard(tasks);
+			setupHeader(boardId);
+			setupBoard(tasks);
+			setupAppScrolling();
 
 			const onResize = () => Array.from(document.querySelectorAll('textarea')).forEach(a => autosize(a));
 			window.addEventListener('resize', onResize);
 			onResize();
-			setupAppScrolling();
-		};
-
-		const updateHeader = (boardId) => {
-			document.querySelector('header').innerHTML = boardId;
-		};
-
-		const updateBoard = (tasks = []) => {
-			const createList = (listId) => {
-				const ul = document.createElement('ul');
-				ul.setAttribute('id', formatId(listId));
-				ul.setAttribute('data-id', listId);
-				document.querySelector('#app').appendChild(ul);
-			};
-
-			const createTask = ({ listId = 'new', task, images, id, priority }, i) => {
-				if (!listId) { listId = 'new' }
-				const li = document.createElement('li');
-				li.setAttribute('data-id', id);
-				li.setAttribute('data-priority', priority);
-				li.addEventListener('mousedown', handleMouseDown);
-
-				const textarea = document.createElement('textarea');
-				textarea.textContent = task;
-				textarea.disabled = true;
-				li.appendChild(textarea);
-
-				const imageArray = images.split(',');
-				imageArray.forEach(src => {
-					if (src) {
-						const img = document.createElement('img');
-						img.src = src;
-						li.appendChild(img);
-					}
-				});
-
-				if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
-					createList(listId);
-				}
-
-				document.querySelector(`#${formatId(listId)}`).appendChild(li);
-			};
-
-			const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
-			lists.forEach(createList);
-			tasks.sort((a, b) => a.priority - b.priority);
-			tasks.forEach(createTask);
-		};
-
-		const autosize = (el) => {
-			el.style.height = '5px';
-			el.style.height = (el.scrollHeight) + 'px';
-		};
-
-		const formatId = (id) => {
-			id = id.replace(' ', '_');
-			return id;
 		};
 
 		const setupAppScrolling = () => {
@@ -224,6 +200,73 @@
 			});
 		};
 
+		const setupBoard = (tasks = []) => {
+			const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
+			lists.forEach(createList);
+			tasks.sort((a, b) => a.priority - b.priority);
+			tasks.forEach(createTask);
+		};
+
+		const setupHeader = (boardId) => {
+			document.querySelector('header').innerHTML = boardId;
+		};
+
+		const createList = (listId) => {
+			const ul = document.createElement('ul');
+			ul.setAttribute('id', formatId(listId));
+			ul.setAttribute('data-id', listId);
+			const button = document.createElement('button');
+			button.setAttribute('data-id', listId);
+			button.textContent = '+ Add task';
+			button.addEventListener('click', (e) => {
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				e.preventDefault();
+				createTask({ listId, task: ' ', id: 'new', priority: 9999 });
+				enableInput('new', ul.querySelector('li[data-id="new"] > textarea'));
+			});
+			ul.appendChild(button);
+			document.querySelector('#app').appendChild(ul);
+		};
+
+		const createTask = ({ listId = 'new', task, images = '', id, priority }, i) => {
+			if (!listId) { listId = 'new' }
+			const li = document.createElement('li');
+			li.setAttribute('data-id', id);
+			li.setAttribute('data-priority', priority);
+			li.addEventListener('mousedown', handleMouseDown);
+
+			const textarea = document.createElement('textarea');
+			textarea.textContent = task;
+			textarea.disabled = true;
+			li.appendChild(textarea);
+
+			const imageArray = images.split(',');
+			imageArray.forEach(src => {
+				if (src) {
+					const img = document.createElement('img');
+					img.src = src;
+					li.appendChild(img);
+				}
+			});
+
+			if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
+				createList(listId);
+			}
+
+			document.querySelector(`#${formatId(listId)}`).appendChild(li);
+		};
+
+		const autosize = (el) => {
+			el.style.height = '5px';
+			el.style.height = (el.scrollHeight) + 'px';
+		};
+
+		const formatId = (id) => {
+			id = id.replace(' ', '_');
+			return id;
+		};
+
 		const handleMouseDown = (e) => {
 			e.stopPropagation();
 			e.stopImmediatePropagation();
@@ -232,6 +275,7 @@
 				handleDoubleClick(e);
 			} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
 				e.currentTarget.setAttribute('class', 'dragging');
+				// e.currentTarget.closest('ul').setAttribute('style', 'overflow: visible');
 
 				const rect = e.currentTarget.getBoundingClientRect();
 				offsetX = rect.left;
@@ -272,9 +316,9 @@
 				const children = Array.from(dragOverList.childNodes);
 				const dragOverIndex = children.findIndex(a => a.className.indexOf('drag-over') > -1);
 				if (dragOverIndex >= children.length - 1) {
-					patchData.priority = Number(dragOver.getAttribute('data-priority')) + 1;
+					patchData.priority = `${Number(dragOver.getAttribute('data-priority')) + 1}`;
 				} else {
-					patchData.priority = (Number(dragOver.getAttribute('data-priority')) + Number(children[dragOverIndex + 1].getAttribute('data-priority'))) / 2;
+					patchData.priority = `${(Number(dragOver.getAttribute('data-priority')) + Number(children[dragOverIndex + 1].getAttribute('data-priority'))) / 2}`;
 				}
 
 				if (Object.keys(patchData).length) {
@@ -283,6 +327,7 @@
 			}
 			dragging.removeAttribute('style');
 			dragging.removeAttribute('class');
+			dragging.closest('ul').removeAttribute('style');
 			Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
 
 			window.removeEventListener('mousemove', handleMouseMove);
@@ -292,12 +337,25 @@
 		const handleDoubleClick = (e) => {
 			const id = e.currentTarget.getAttribute('data-id');
 			const textarea = e.currentTarget.querySelector('textarea');
-			textarea.addEventListener('blur', (e) => { textarea.disabled = true; if (textareaChanged) { textareaChanged = false; patchTask(id, { task: e.target.value })}});
-			textarea.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
-			textarea.removeAttribute('disabled');
-			textarea.focus();
-			textarea.setSelectionRange(textarea.value.length, textarea.value.length + 1);
+			enableInput(id, textarea);
 		};
+
+		const enableInput = (id, el) => {
+			const update = () => {
+				if (id === 'new') {
+					const priority = `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}`;
+					postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority });
+				} else {
+					patchTask(id, { task: el.value });
+				}
+			};
+
+			el.addEventListener('blur', (e) => { el.disabled = true; if (textareaChanged) { textareaChanged = false; update(); } else { el.closest('li').remove(); }});
+			el.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
+			el.removeAttribute('disabled');
+			el.focus();
+			el.setSelectionRange(el.value.length, el.value.length + 1);
+		}
 
 		let textareaChanged = false;
 		let offsetX = 0;
