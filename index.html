@@ -2,8 +2,8 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>Demo</title>
-		<meta name="description" content="Demo">
+		<title>Task Manager</title>
+		<meta name="description" content="Task Manager">
 		<style>
 			* {
 				box-sizing: border-box;
@@ -33,8 +33,14 @@
 				transition: none;
 				z-index: 1;
 			}
-			.drag-over {
-				box-shadow: inset 0 2px 2px 0 rgb(0 0 0 / 14%), inset 0 3px 1px -2px rgb(0 0 0 / 12%), inset 0 1px 5px 0 rgb(0 0 0 / 20%);
+			.drag-over::after {
+				background-color: green;
+				content: '';
+				height: 4px;
+				left: 0;
+				position: absolute;
+				top: calc(100% + 3px);
+				width: 100%;
 			}
 			header {
 				background-color: #EAEDF0;
@@ -46,7 +52,7 @@
 			}
 			img {
 				display: block;
-				margin: 0 auto 0 0;
+				margin: 10px auto 0 0;
 				max-width: 100%;
 				pointer-events: none;
 				user-select: none;
@@ -56,9 +62,11 @@
 			textarea {
 				background-color: transparent;
 				border: none;
-				resize: none;
+				outline: none;
 				pointer-events: none;
+				resize: none;
 				user-select: none;
+				width: 100%;
 			}
 			textarea:enabled {
 				user-select: all;
@@ -72,7 +80,7 @@
 				flex-direction: column;
 		    	list-style-type: none;
 				margin-bottom: 10px;
-				padding: 5px 25px 6px 10px;
+				padding: 5px 10px 6px 10px;
 				position: relative;
 				text-indent: 0;
 				transform: translate(0, 0);
@@ -119,12 +127,31 @@
 			return [];
 		}
 
+		const patchTask = async (id, data) => {
+			const response = await fetch(`/api/task/${id}`, {
+				method: 'PATCH',
+				mode: 'cors',
+				headers: {
+				  'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (response.ok) {
+				location.reload();
+			}
+		};
+
 		const init = async () => {
 			const params = new URLSearchParams(document.location.search.substring(1));
 			const boardId = params.get("boardId");
 			const tasks = await getTasks(boardId);
 			updateHeader(boardId);
 			updateBoard(tasks);
+
+			const onResize = () => Array.from(document.querySelectorAll('textarea')).forEach(a => autosize(a));
+			window.addEventListener('resize', onResize);
+			onResize();
+			setupAppScrolling();
 		};
 
 		const updateHeader = (boardId) => {
@@ -139,16 +166,16 @@
 				document.querySelector('#app').appendChild(ul);
 			};
 
-			const createTask = ({ listId = 'new', task, images, id }, i) => {
+			const createTask = ({ listId = 'new', task, images, id, priority }, i) => {
 				if (!listId) { listId = 'new' }
 				const li = document.createElement('li');
 				li.setAttribute('data-id', id);
-				li.addEventListener('dblclick', handleDoubleClick);
+				li.setAttribute('data-priority', priority);
 				li.addEventListener('mousedown', handleMouseDown);
 
 				const textarea = document.createElement('textarea');
 				textarea.textContent = task;
-				textarea.setAttribute('disabled', true);
+				textarea.disabled = true;
 				li.appendChild(textarea);
 
 				const imageArray = images.split(',');
@@ -169,8 +196,13 @@
 
 			const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
 			lists.forEach(createList);
-			tasks.sort((a, b) => a.task - b.task);
+			tasks.sort((a, b) => a.priority - b.priority);
 			tasks.forEach(createTask);
+		};
+
+		const autosize = (el) => {
+			el.style.height = '5px';
+			el.style.height = (el.scrollHeight) + 'px';
 		};
 
 		const formatId = (id) => {
@@ -178,17 +210,38 @@
 			return id;
 		};
 
+		const setupAppScrolling = () => {
+			const app = document.querySelector('#app');
+			app.addEventListener('mousedown', (e) => {
+				if (e.button === 0) {
+					const left = app.scrollLeft;
+					const x = e.clientX;
+					const appMouseMove = (ev) => app.scrollLeft = left - (ev.clientX - x);
+					const appMouseUp = () => { app.removeEventListener('mousemove', appMouseMove); app.removeEventListener('mouseup', appMouseUp); }
+					app.addEventListener('mousemove', appMouseMove);
+					app.addEventListener('mouseup', appMouseUp);
+				}
+			});
+		};
+
 		const handleMouseDown = (e) => {
-			e.currentTarget.setAttribute('class', 'dragging');
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+			e.preventDefault();
+			if (e.button === 0 && e.detail === 2) {
+				handleDoubleClick(e);
+			} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
+				e.currentTarget.setAttribute('class', 'dragging');
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			offsetX = rect.left;
-			offsetY = rect.top;
-			relX = e.clientX - rect.left;
-			relY = e.clientY - rect.top;
+				const rect = e.currentTarget.getBoundingClientRect();
+				offsetX = rect.left;
+				offsetY = rect.top;
+				relX = e.clientX - rect.left;
+				relY = e.clientY - rect.top;
 
-			window.addEventListener('mousemove', handleMouseMove);
-			window.addEventListener('mouseup', handleMouseUp);
+				window.addEventListener('mousemove', handleMouseMove);
+				window.addEventListener('mouseup', handleMouseUp);
+			}
 		};
 
 		const handleMouseMove = (e) => {
@@ -196,23 +249,36 @@
 			const rect = dragging.getBoundingClientRect();
 			const x = e.clientX - offsetX - relX;
 			const y = e.clientY - offsetY - relY;
-			const dragOver = document.querySelector('ul:hover');
+			const dragOver = document.querySelector('li:hover');
+			Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
 			if (dragOver) {
 				dragOver.setAttribute('class', 'drag-over');
-			} else {
-				Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
 			}
 			dragging.setAttribute('style', `transform: translate(${x}px, ${y}px) rotate(3deg)`);
 		};
 
 		const handleMouseUp = (e) => {
 			const dragging = document.querySelector('.dragging');
-			const dragOver = document.querySelector('ul:hover');
+			const dragOver = document.querySelector('li:hover');
 			if (dragOver) {
-				const listId = dragOver ? dragOver.getAttribute('data-id') : null;
+				const patchData = {};
+				const listId = document.querySelector('ul:hover').getAttribute('data-id');
 				const currentListId = dragging.closest('ul').getAttribute('data-id');
 				if (currentListId !== listId) {
-					patchTask(dragging.getAttribute('data-id'), { listId });
+					patchData.listId = listId;
+				}
+
+				const dragOverList = document.querySelector('ul:hover');
+				const children = Array.from(dragOverList.childNodes);
+				const dragOverIndex = children.findIndex(a => a.className.indexOf('drag-over') > -1);
+				if (dragOverIndex >= children.length - 1) {
+					patchData.priority = Number(dragOver.getAttribute('data-priority')) + 1;
+				} else {
+					patchData.priority = (Number(dragOver.getAttribute('data-priority')) + Number(children[dragOverIndex + 1].getAttribute('data-priority'))) / 2;
+				}
+
+				if (Object.keys(patchData).length) {
+					patchTask(dragging.getAttribute('data-id'), patchData);
 				}
 			}
 			dragging.removeAttribute('style');
@@ -224,24 +290,16 @@
 		};
 
 		const handleDoubleClick = (e) => {
-			console.log(e, e.target, e.currentTarget);
-			e.target.querySelector('textarea').setAttribute('disabled', false);
+			const id = e.currentTarget.getAttribute('data-id');
+			const textarea = e.currentTarget.querySelector('textarea');
+			textarea.addEventListener('blur', (e) => { textarea.disabled = true; if (textareaChanged) { textareaChanged = false; patchTask(id, { task: e.target.value })}});
+			textarea.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
+			textarea.removeAttribute('disabled');
+			textarea.focus();
+			textarea.setSelectionRange(textarea.value.length, textarea.value.length + 1);
 		};
 
-		const patchTask = async (id, data) => {
-			const response = await fetch(`/api/task/${id}`, {
-				method: 'PATCH',
-				mode: 'cors',
-				headers: {
-				  'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(data)
-			});
-			if (response.ok) {
-				location.reload();
-			}
-		};
-
+		let textareaChanged = false;
 		let offsetX = 0;
 		let offsetY = 0;
 		let relX = 0;

@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	_ "log"
 	"fmt"
+    "strings"
 )
 
 type Task struct {
@@ -16,6 +17,7 @@ type Task struct {
 	BoardId string `json:"boardId"`
 	ListId string `json:"listId"`
 	Id string `json:"id"`
+	Priority float32 `json:"priority"`
 }
 
 func main() {
@@ -23,10 +25,19 @@ func main() {
 	checkErr(err, "", true)
 	defer db.Close()
 
-	_, err = db.Exec("create table tasks (id text not null primary key, boardId text, listId text, task text, images text)")
+	_, err = db.Exec("create table tasks (id text not null primary key, boardId text, listId text, task text, images text, priority real)")
 	checkErr(err, "", true)
 
-	_, err = db.Exec("insert into tasks values ('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150'), ('2', 'hello', 'list 1', '2. scott', ''), ('3', 'hello', 'list 1a', '3. scott', ''), ('4', 'hello', 'list 2', '4. scott', ''), ('5', 'hello', 'list 3', '5. scawer awerott', ''), ('6', 'hello', 'list 4', '6. sco awer awer tt', ''), ('7', 'hello', 'list 5', 'scott awwerawerawer', ''), ('8', 'test', 'list 2', 'awesome', '')")
+	_, err = db.Exec(`insert into tasks values
+		('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', 1),
+		('2', 'hello', 'list 1', '2. scott', '', 2),
+		('3', 'hello', 'list 1a', '3. scott', '', 3),
+		('4', 'hello', 'list 2', '4. scott', '', 4),
+		('5', 'hello', 'list 3', '5. scawer awerott', '', 5),
+		('6', 'hello', 'list 4', '6. sco awer awer tt', '', 6),
+		('7', 'hello', 'list 5', 'scott awwerawerawer', '', 7),
+		('8', 'test', 'list 2', 'awesome', '', 8)
+	`)
 	checkErr(err, "", true)
 
 	app := fiber.New()
@@ -71,7 +82,7 @@ func postTask(c *fiber.Ctx, db *sql.DB) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?)", uuid.New(), body.BoardId, body.ListId, body.Task, body.Images)
+	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?, ?)", uuid.New(), body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
 	checkErr(err, "coulnt't insert task into board", false)
 
 	return c.SendStatus(fiber.StatusOK)
@@ -86,13 +97,20 @@ func patchTask(c *fiber.Ctx, db *sql.DB) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	var listIdPatch string
+	values := []string{}
 	if body.ListId != "" {
-		listIdPatch = fmt.Sprintf("listId = '%s'", body.ListId)
+	    values = append(values, fmt.Sprintf("listId = '%s'", body.ListId))
 	}
+	if body.Task != "" {
+	    values = append(values, fmt.Sprintf("task = '%s'", body.Task))
+	}
+	if body.Priority >= 0 || body.Priority < 0 {
+	    values = append(values, fmt.Sprintf("priority = '%f'", body.Priority))
+	}
+	result := strings.Join(values, ", ")
 
-	if listIdPatch != "" {
-		var execStr = fmt.Sprintf("update tasks set %s where id = '%s'", listIdPatch, id);
+	if result != "" {
+		var execStr = fmt.Sprintf("update tasks set %s where id = '%s'", result, id);
 		_, err2 := db.Exec(execStr)
 		checkErr(err2, "coulnt't update task", false)
 	}
@@ -109,7 +127,7 @@ func getTasksFromBoard(c *fiber.Ctx, db *sql.DB) error {
 	var tasks []Task
 	var task Task
 	for rows.Next() {
-		rows.Scan(&task.Id, &task.BoardId, &task.ListId, &task.Task, &task.Images)
+		rows.Scan(&task.Id, &task.BoardId, &task.ListId, &task.Task, &task.Images, &task.Priority)
 		tasks = append(tasks, task)
 	}
 
