@@ -90,6 +90,23 @@
 			li:first-child {
 				margin-top: 30px;
 			}
+			li button {
+				background-color: #EAEDF0;
+				border: none;
+				cursor: pointer;
+				font-family: monospace;
+				font-size: 12px;
+				opacity: 0;
+				padding: 6px 10px;
+				position: absolute;
+				right: 0;
+				top: 0;
+				transition: opacity .2s ease;
+			}
+			li:hover button {
+				opacity: 1;
+				transition-delay: .5s;
+			}
 			ul {
 				background: linear-gradient(#EAEDF0 30px, #DDE1E5 90px);
 				flex-shrink: 0;
@@ -146,21 +163,20 @@
 			return [];
 		};
 
-		const postTask = async (data) => {
-			const response = await fetch(`/api/task`, {
-				method: 'POST',
+		const deleteTask = async (id, callback) => {
+			const response = await fetch(`/api/task/${id}`, {
+				method: 'DELETE',
 				mode: 'cors',
 				headers: {
 				  'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(data)
+				}
 			});
-			if (response.ok) {
-				location.reload();
+			if (response.ok && callback) {
+				await callback();
 			}
 		};
 
-		const patchTask = async (id, data) => {
+		const patchTask = async (id, data, callback) => {
 			const response = await fetch(`/api/task/${id}`, {
 				method: 'PATCH',
 				mode: 'cors',
@@ -169,8 +185,23 @@
 				},
 				body: JSON.stringify(data)
 			});
-			if (response.ok) {
-				location.reload();
+			if (response.ok && callback) {
+				await callback();
+			}
+		};
+
+		const postTask = async (data, callback) => {
+			const response = await fetch(`/api/task`, {
+				method: 'POST',
+				mode: 'cors',
+				headers: {
+				  'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(data)
+			});
+			if (response.ok && callback) {
+				const task = await response.json();
+				callback(task);
 			}
 		};
 
@@ -200,16 +231,16 @@
 			});
 		};
 
-		const setupBoard = (tasks = []) => {
-			const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
-			lists.forEach(createList);
-			tasks.sort((a, b) => a.priority - b.priority);
-			tasks.forEach(createTask);
+		const setupBoard = (tasks) => {
+			if (tasks && tasks.length) {
+				const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
+				lists.forEach(createList);
+				tasks.sort((a, b) => a.priority - b.priority);
+				tasks.forEach(createTask);
+			}
 		};
 
-		const setupHeader = (boardId) => {
-			document.querySelector('header').innerHTML = boardId;
-		};
+		const setupHeader = (boardId) => document.querySelector('header').innerHTML = boardId;
 
 		const createList = (listId) => {
 			const ul = document.createElement('ul');
@@ -240,6 +271,11 @@
 			textarea.textContent = task;
 			textarea.disabled = true;
 			li.appendChild(textarea);
+
+			const deleteBtn = document.createElement('button');
+			deleteBtn.textContent = 'x';
+			deleteBtn.addEventListener('click', () => deleteTask(id));
+			li.appendChild(deleteBtn);
 
 			const imageArray = images.split(',');
 			imageArray.forEach(src => {
@@ -273,9 +309,14 @@
 			e.preventDefault();
 			if (e.button === 0 && e.detail === 2) {
 				handleDoubleClick(e);
+			} else if (e.button === 0 && e.detail === 1 && e.target.tagName === 'BUTTON') {
+				const li = e.currentTarget;
+				deleteTask(li.getAttribute('data-id'), () => {
+					li.remove();
+					removeEmptyLists();
+				});
 			} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
 				e.currentTarget.setAttribute('class', 'dragging');
-				// e.currentTarget.closest('ul').setAttribute('style', 'overflow: visible');
 
 				const rect = e.currentTarget.getBoundingClientRect();
 				offsetX = rect.left;
@@ -294,7 +335,7 @@
 			const x = e.clientX - offsetX - relX;
 			const y = e.clientY - offsetY - relY;
 			const dragOver = document.querySelector('li:hover');
-			Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+			removeDragOverClass();
 			if (dragOver) {
 				dragOver.setAttribute('class', 'drag-over');
 			}
@@ -305,14 +346,14 @@
 			const dragging = document.querySelector('.dragging');
 			const dragOver = document.querySelector('li:hover');
 			if (dragOver) {
+				const dragOverList = document.querySelector('ul:hover');
 				const patchData = {};
-				const listId = document.querySelector('ul:hover').getAttribute('data-id');
+				const listId = dragOverList.getAttribute('data-id');
 				const currentListId = dragging.closest('ul').getAttribute('data-id');
 				if (currentListId !== listId) {
 					patchData.listId = listId;
 				}
 
-				const dragOverList = document.querySelector('ul:hover');
 				const children = Array.from(dragOverList.childNodes);
 				const dragOverIndex = children.findIndex(a => a.className.indexOf('drag-over') > -1);
 				if (dragOverIndex >= children.length - 1) {
@@ -322,13 +363,19 @@
 				}
 
 				if (Object.keys(patchData).length) {
-					patchTask(dragging.getAttribute('data-id'), patchData);
+					patchTask(dragging.getAttribute('data-id'), patchData, () => {
+						dragOverList.insertBefore(dragging, dragOverList.childNodes[dragOverIndex + 1]);
+						if (patchData.priority) {
+							dragging.setAttribute('data-priority', patchData.priority);
+						}
+						removeEmptyLists();
+					});
 				}
 			}
 			dragging.removeAttribute('style');
 			dragging.removeAttribute('class');
 			dragging.closest('ul').removeAttribute('style');
-			Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+			removeDragOverClass();
 
 			window.removeEventListener('mousemove', handleMouseMove);
 			window.removeEventListener('mouseup', handleMouseUp);
@@ -344,18 +391,23 @@
 			const update = () => {
 				if (id === 'new') {
 					const priority = `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}`;
-					postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority });
+					postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority }, (json) => {
+						el.parentNode.setAttribute('data-id', json.id);
+					});
 				} else {
 					patchTask(id, { task: el.value });
 				}
 			};
 
-			el.addEventListener('blur', (e) => { el.disabled = true; if (textareaChanged) { textareaChanged = false; update(); } else { el.closest('li').remove(); }});
+			el.addEventListener('blur', (e) => { el.disabled = true; if (textareaChanged) { textareaChanged = false; update(); } else if (el.value.length <= 1) { el.closest('li').remove(); }});
 			el.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
 			el.removeAttribute('disabled');
 			el.focus();
 			el.setSelectionRange(el.value.length, el.value.length + 1);
 		}
+
+		const removeDragOverClass = () => Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+		const removeEmptyLists = () => Array.from(document.querySelectorAll('ul > button:last-child')).forEach(a => a.parentNode.remove());
 
 		let textareaChanged = false;
 		let offsetX = 0;

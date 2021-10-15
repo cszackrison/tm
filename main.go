@@ -31,7 +31,7 @@ func main() {
 	_, err = db.Exec(`insert into tasks values
 		('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', '1'),
 		('2', 'hello', 'list 1', '2. scott', '', '2'),
-		('3', 'hello', 'list 1a', '3. scott', '', '3'),
+		('3', 'hello', 'list 1a', '3. scott', 'https://via.placeholder.com/300', '3'),
 		('4', 'hello', 'list 2', '4. scott', '', '4'),
 		('5', 'hello', 'list 3', '5. scawer awerott', '', '5'),
 		('6', 'hello', 'list 4', '6. sco awer awer tt', '', '6'),
@@ -43,6 +43,7 @@ func main() {
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{ AllowOrigins: "*", AllowHeaders: "Content-Type", }))
 	app.Static("/", "./index.html")
+	app.Delete("/api/task/:id", func(c *fiber.Ctx) error { return deleteTask(c, db) })
 	app.Post("/api/task", func(c *fiber.Ctx) error { return postTask(c, db) })
 	app.Patch("/api/task/:id", func(c *fiber.Ctx) error { return patchTask(c, db) })
 	app.Get("/api/tasks/:boardId", func(c *fiber.Ctx) error { return getTasksFromBoard(c, db) })
@@ -58,22 +59,17 @@ func checkErr(err error, msg string, shouldPanic bool) {
     }
 }
 
+func deleteTask(c *fiber.Ctx, db *sql.DB) error {
+	var id = c.Params("id")
+	_, err2 := db.Exec(fmt.Sprintf("delete from tasks where id = '%s'", id))
+	checkErr(err2, "cannot delete task", false)
+	return c.SendStatus(fiber.StatusOK)
+}
 /* client test:
 	var range = window.getSelection().getRangeAt(0);
 	var frag = range.cloneContents();
 	var string = window.getSelection().toString();
 	console.log(string, Array.from(frag.querySelectorAll('img')).map(a => a.getAttribute('src')));
-*/
-
-/* test:
-	fetch('http://localhost:8080/api/task', {
-		method: 'POST',
-		mode: 'cors',
-		headers: {
-		  'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({ task: 'hello task', boardId: 'hello' })
-	})
 */
 func postTask(c *fiber.Ctx, db *sql.DB) error {
 	body := new(Task)
@@ -82,10 +78,12 @@ func postTask(c *fiber.Ctx, db *sql.DB) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?)", uuid.New(), body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
+	newId := uuid.New()
+	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?)", newId, body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
 	checkErr(err, "cannot insert task into board", false)
 
-	return c.SendStatus(fiber.StatusOK)
+	body.Id = newId.String()
+	return c.Status(fiber.StatusOK).JSON(body)
 }
 
 func patchTask(c *fiber.Ctx, db *sql.DB) error {
