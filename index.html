@@ -28,6 +28,16 @@
 				overflow-y: hidden;
 				width: calc(100% - 60px);
 			}
+			#app > button {
+				background-color: transparent;
+				border: 4px dashed #EAEDF0;
+				color: #DDE1E5;
+				flex-shrink: 0;
+				font-size: 24px;
+				padding: 20px 10px;
+				margin: 16px 20px 0 0;
+				width: 18%;
+			}
 			.dragging {
 				pointer-events: none;
 				transition: none;
@@ -157,7 +167,6 @@
 		<script type="text/javascript">
 			/* TODO:
 				- fix extra long lists
-				- add a way to add lists
 			*/
 
 			const getBoardId = () => {
@@ -198,8 +207,8 @@
 					},
 					body: JSON.stringify({ listId: data })
 				});
-				if (response.ok && callback) {
-					await callback();
+				if (callback) {
+					await callback(response.ok);
 				}
 			};
 
@@ -265,10 +274,23 @@
 					tasks.sort((a, b) => a.priority - b.priority);
 					tasks.forEach(createTask);
 				}
-				// createList();
+				createAddListButton();
 			};
 
 			const setupHeader = (boardId) => document.querySelector('header').innerHTML = boardId;
+
+			const createAddListButton = () => {
+				const button = document.createElement('button');
+				button.textContent = '+';
+				button.addEventListener('click', () => {
+					const list = createList(' ');
+					const input = list.querySelector('input');
+					input.disabled = false;
+					input.focus();
+					input.setSelectionRange(0, input.value.length + 1);
+				});
+				document.querySelector('#app').appendChild(button);
+			};
 
 			const createList = (listId) => {
 				const ul = document.createElement('ul');
@@ -294,6 +316,10 @@
 					const updateList = (newId) => {
 						updateListId(listId, newId);
 						sortList();
+
+						if (!ul.querySelector('button')) {
+							createListAddButton();
+						}
 					};
 					input.addEventListener('blur', () => { input.disabled = true; if (inputChanged && input.value.length > 0) { patchList(getBoardId(), listId, input.value, () => updateList(input.value)) } });
 					input.addEventListener('input', (e) => { inputChanged = true; });
@@ -303,25 +329,25 @@
 
 				const createListAddButton = () => {
 					const button = document.createElement('button');
-					button.setAttribute('data-id', listId);
 					button.textContent = '+ add task';
 					button.addEventListener('click', (e) => {
 						e.stopPropagation();
 						e.stopImmediatePropagation();
 						e.preventDefault();
-						createTask({ listId, task: ' ', id: 'new', priority: 9999 });
+						createTask({ listId: e.currentTarget.parentNode.getAttribute('data-id'), task: ' ', id: 'new', priority: 9999 });
 						enableInput('new', ul.querySelector('li[data-id="new"] > textarea'));
 					});
 					ul.appendChild(button);
 				};
 
 				createListTitle();
-				createListAddButton();
-				document.querySelector('#app').appendChild(ul);
+				if (listId.length > 0) {
+					createListAddButton();
+				}
+				return document.querySelector('#app').insertBefore(ul, document.querySelector('#app > button'));
 			};
 
-			const createTask = ({ listId = 'new', task, images = '', id, priority }, i) => {
-				if (!listId) { listId = 'new' }
+			const createTask = ({ listId, task, images = '', id, priority }, i) => {
 				const li = document.createElement('li');
 				li.setAttribute('data-id', id);
 				li.setAttribute('data-priority', priority);
@@ -345,10 +371,6 @@
 						li.appendChild(img);
 					}
 				});
-
-				if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
-					createList(listId);
-				}
 
 				document.querySelector(`#${formatId(listId)}`).appendChild(li);
 			};
@@ -452,7 +474,7 @@
 			const enableInput = (id, el) => {
 				const update = () => {
 					if (id === 'new') {
-						const priority = `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}`;
+						const priority = el.closest('ul').querySelector('li:nth-last-child(2)') ? `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}` : '99999';
 						postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority }, (json) => {
 							el.parentNode.setAttribute('data-id', json.id);
 						});
@@ -479,7 +501,7 @@
 				const app = document.querySelector('#app');
 				[...app.children]
 					.sort((a, b) => a.getAttribute('data-id') > b.getAttribute('data-id') ? 1 : -1)
-					.forEach(a => app.appendChild(a));
+					.forEach(a => app.insertBefore(a, document.querySelector('#app > button')));
 
 			};
 
