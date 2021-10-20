@@ -68,20 +68,22 @@
 				width: auto;
 			}
 			input {
-				background-color: transparent;
+				background: linear-gradient(#EAEDF0 30px, #DDE1E5 90px);
 				border: none;
 				color: black;
 				font-family: serif;
 				font-size: 16px;
 				font-weight: bold;
 				left: 0;
+				margin-left: -10px;
 				outline: none;
 				padding: 10px;
 				pointer-events: all;
-				position: absolute;
+				position: sticky;
 				top: 0;
 				user-select: none;
-				width: 100%;
+				width: calc(100% + 20px);
+				z-index: 1;
 			}
 			textarea {
 				background-color: transparent;
@@ -138,7 +140,7 @@
 				flex-shrink: 0;
 				list-style-position: outside;
 				margin-right: 20px;
-				padding: 40px 10px;
+				padding: 0 10px 10px;
 				position: relative;
 				width: 18%;
 			}
