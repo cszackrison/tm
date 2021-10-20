@@ -40,7 +40,7 @@
 			.dragging {
 				pointer-events: none;
 				transition: none;
-				z-index: 1;
+				z-index: 2;
 			}
 			.drag-over::after {
 				background-color: green;
@@ -258,8 +258,16 @@
 				app.addEventListener('mousedown', (e) => {
 					if (e.button === 0) {
 						const left = app.scrollLeft;
+						const top = app.scrollTop;
 						const x = e.clientX;
-						const appMouseMove = (ev) => app.scrollLeft = left - (ev.clientX - x);
+						const y = e.clientY;
+						const appMouseMove = (ev) => {
+							ev.stopPropagation();
+							ev.stopImmediatePropagation();
+							ev.preventDefault();
+							app.scrollLeft = left - (ev.clientX - x);
+							app.scrollTop = top - (ev.clientY - y)
+						};
 						const appMouseUp = () => { app.removeEventListener('mousemove', appMouseMove); app.removeEventListener('mouseup', appMouseUp); }
 						app.addEventListener('mousemove', appMouseMove);
 						app.addEventListener('mouseup', appMouseUp);
