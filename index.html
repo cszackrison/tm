@@ -58,6 +58,22 @@
 				user-select: none;
 				width: auto;
 			}
+			input {
+				background-color: transparent;
+				border: none;
+				color: black;
+				font-family: serif;
+				font-size: 16px;
+				font-weight: bold;
+				left: 0;
+				outline: none;
+				padding: 10px;
+				pointer-events: all;
+				position: absolute;
+				top: 0;
+				user-select: none;
+				width: 100%;
+			}
 			textarea {
 				background-color: transparent;
 				border: none;
@@ -69,6 +85,7 @@
 				user-select: none;
 				width: 100%;
 			}
+			input:enabled,
 			textarea:enabled {
 				user-select: all;
 				pointer-events: all;
@@ -120,14 +137,6 @@
 			ul:last-child {
 				margin-right: 0;
 			}
-			ul::before {
-				content: attr(data-id);
-				font-weight: bold;
-				left: 0;
-				padding: 10px;
-				position: absolute;
-				top: 0;
-			}
 			ul > button {
 				background: transparent;
 				border: none;
@@ -145,276 +154,343 @@
 	<body>
 		<header></header>
 		<div id='app'></div>
-	</body>
-	<script type="text/javascript">
-		const getBoardId = () => {
-			const params = new URLSearchParams(document.location.search.substring(1));
-			return params.get("boardId");
-		};
+		<script type="text/javascript">
+			/* TODO:
+				- fix extra long lists
+				- add a way to add lists
+			*/
 
-		const getTasks = async (boardId) => {
-			if (boardId) {
-				const response = await fetch(`/api/tasks/${boardId}`);
-				if (response.ok) {
-					const data = await response.json();
-					return data.tasks;
+			const getBoardId = () => {
+				const params = new URLSearchParams(document.location.search.substring(1));
+				return params.get("boardId");
+			};
+
+			const getTasks = async (boardId) => {
+				if (boardId) {
+					const response = await fetch(`/api/tasks/${boardId}`);
+					if (response.ok) {
+						const data = await response.json();
+						return data.tasks;
+					}
 				}
-			}
-			return [];
-		};
+				return [];
+			};
 
-		const deleteTask = async (id, callback) => {
-			const response = await fetch(`/api/task/${id}`, {
-				method: 'DELETE',
-				mode: 'cors',
-				headers: {
-				  'Content-Type': 'application/json'
-				}
-			});
-			if (response.ok && callback) {
-				await callback();
-			}
-		};
-
-		const patchTask = async (id, data, callback) => {
-			const response = await fetch(`/api/task/${id}`, {
-				method: 'PATCH',
-				mode: 'cors',
-				headers: {
-				  'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(data)
-			});
-			if (response.ok && callback) {
-				await callback();
-			}
-		};
-
-		const postTask = async (data, callback) => {
-			const response = await fetch(`/api/task`, {
-				method: 'POST',
-				mode: 'cors',
-				headers: {
-				  'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(data)
-			});
-			if (response.ok && callback) {
-				const task = await response.json();
-				callback(task);
-			}
-		};
-
-		const init = async () => {
-			const boardId = getBoardId();
-			const tasks = await getTasks(boardId);
-			setupHeader(boardId);
-			setupBoard(tasks);
-			setupAppScrolling();
-
-			const onResize = () => Array.from(document.querySelectorAll('textarea')).forEach(a => autosize(a));
-			window.addEventListener('resize', onResize);
-			onResize();
-		};
-
-		const setupAppScrolling = () => {
-			const app = document.querySelector('#app');
-			app.addEventListener('mousedown', (e) => {
-				if (e.button === 0) {
-					const left = app.scrollLeft;
-					const x = e.clientX;
-					const appMouseMove = (ev) => app.scrollLeft = left - (ev.clientX - x);
-					const appMouseUp = () => { app.removeEventListener('mousemove', appMouseMove); app.removeEventListener('mouseup', appMouseUp); }
-					app.addEventListener('mousemove', appMouseMove);
-					app.addEventListener('mouseup', appMouseUp);
-				}
-			});
-		};
-
-		const setupBoard = (tasks) => {
-			if (tasks && tasks.length) {
-				const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
-				lists.forEach(createList);
-				tasks.sort((a, b) => a.priority - b.priority);
-				tasks.forEach(createTask);
-			}
-		};
-
-		const setupHeader = (boardId) => document.querySelector('header').innerHTML = boardId;
-
-		const createList = (listId) => {
-			const ul = document.createElement('ul');
-			ul.setAttribute('id', formatId(listId));
-			ul.setAttribute('data-id', listId);
-			const button = document.createElement('button');
-			button.setAttribute('data-id', listId);
-			button.textContent = '+ Add task';
-			button.addEventListener('click', (e) => {
-				e.stopPropagation();
-				e.stopImmediatePropagation();
-				e.preventDefault();
-				createTask({ listId, task: ' ', id: 'new', priority: 9999 });
-				enableInput('new', ul.querySelector('li[data-id="new"] > textarea'));
-			});
-			ul.appendChild(button);
-			document.querySelector('#app').appendChild(ul);
-		};
-
-		const createTask = ({ listId = 'new', task, images = '', id, priority }, i) => {
-			if (!listId) { listId = 'new' }
-			const li = document.createElement('li');
-			li.setAttribute('data-id', id);
-			li.setAttribute('data-priority', priority);
-			li.addEventListener('mousedown', handleMouseDown);
-
-			const textarea = document.createElement('textarea');
-			textarea.textContent = task;
-			textarea.disabled = true;
-			li.appendChild(textarea);
-
-			const deleteBtn = document.createElement('button');
-			deleteBtn.textContent = 'x';
-			deleteBtn.addEventListener('click', () => deleteTask(id));
-			li.appendChild(deleteBtn);
-
-			const imageArray = images.split(',');
-			imageArray.forEach(src => {
-				if (src) {
-					const img = document.createElement('img');
-					img.src = src;
-					li.appendChild(img);
-				}
-			});
-
-			if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
-				createList(listId);
-			}
-
-			document.querySelector(`#${formatId(listId)}`).appendChild(li);
-		};
-
-		const autosize = (el) => {
-			el.style.height = '5px';
-			el.style.height = (el.scrollHeight) + 'px';
-		};
-
-		const formatId = (id) => {
-			id = id.replace(' ', '_');
-			return id;
-		};
-
-		const handleMouseDown = (e) => {
-			e.stopPropagation();
-			e.stopImmediatePropagation();
-			e.preventDefault();
-			if (e.button === 0 && e.detail === 2) {
-				handleDoubleClick(e);
-			} else if (e.button === 0 && e.detail === 1 && e.target.tagName === 'BUTTON') {
-				const li = e.currentTarget;
-				deleteTask(li.getAttribute('data-id'), () => {
-					li.remove();
-					removeEmptyLists();
+			const deleteTask = async (id, callback) => {
+				const response = await fetch(`/api/task/${id}`, {
+					method: 'DELETE',
+					mode: 'cors',
+					headers: {
+					  'Content-Type': 'application/json'
+					}
 				});
-			} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
-				e.currentTarget.setAttribute('class', 'dragging');
-
-				const rect = e.currentTarget.getBoundingClientRect();
-				offsetX = rect.left;
-				offsetY = rect.top;
-				relX = e.clientX - rect.left;
-				relY = e.clientY - rect.top;
-
-				window.addEventListener('mousemove', handleMouseMove);
-				window.addEventListener('mouseup', handleMouseUp);
-			}
-		};
-
-		const handleMouseMove = (e) => {
-			const dragging = document.querySelector('.dragging');
-			const rect = dragging.getBoundingClientRect();
-			const x = e.clientX - offsetX - relX;
-			const y = e.clientY - offsetY - relY;
-			const dragOver = document.querySelector('li:hover');
-			removeDragOverClass();
-			if (dragOver) {
-				dragOver.setAttribute('class', 'drag-over');
-			}
-			dragging.setAttribute('style', `transform: translate(${x}px, ${y}px) rotate(3deg)`);
-		};
-
-		const handleMouseUp = (e) => {
-			const dragging = document.querySelector('.dragging');
-			const dragOver = document.querySelector('li:hover');
-			if (dragOver) {
-				const dragOverList = document.querySelector('ul:hover');
-				const patchData = {};
-				const listId = dragOverList.getAttribute('data-id');
-				const currentListId = dragging.closest('ul').getAttribute('data-id');
-				if (currentListId !== listId) {
-					patchData.listId = listId;
-				}
-
-				const children = Array.from(dragOverList.childNodes);
-				const dragOverIndex = children.findIndex(a => a.className.indexOf('drag-over') > -1);
-				if (dragOverIndex >= children.length - 1) {
-					patchData.priority = `${Number(dragOver.getAttribute('data-priority')) + 1}`;
-				} else {
-					patchData.priority = `${(Number(dragOver.getAttribute('data-priority')) + Number(children[dragOverIndex + 1].getAttribute('data-priority'))) / 2}`;
-				}
-
-				if (Object.keys(patchData).length) {
-					patchTask(dragging.getAttribute('data-id'), patchData, () => {
-						dragOverList.insertBefore(dragging, dragOverList.childNodes[dragOverIndex + 1]);
-						if (patchData.priority) {
-							dragging.setAttribute('data-priority', patchData.priority);
-						}
-						removeEmptyLists();
-					});
-				}
-			}
-			dragging.removeAttribute('style');
-			dragging.removeAttribute('class');
-			dragging.closest('ul').removeAttribute('style');
-			removeDragOverClass();
-
-			window.removeEventListener('mousemove', handleMouseMove);
-			window.removeEventListener('mouseup', handleMouseUp);
-		};
-
-		const handleDoubleClick = (e) => {
-			const id = e.currentTarget.getAttribute('data-id');
-			const textarea = e.currentTarget.querySelector('textarea');
-			enableInput(id, textarea);
-		};
-
-		const enableInput = (id, el) => {
-			const update = () => {
-				if (id === 'new') {
-					const priority = `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}`;
-					postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority }, (json) => {
-						el.parentNode.setAttribute('data-id', json.id);
-					});
-				} else {
-					patchTask(id, { task: el.value });
+				if (response.ok && callback) {
+					await callback();
 				}
 			};
 
-			el.addEventListener('blur', (e) => { el.disabled = true; if (textareaChanged) { textareaChanged = false; update(); } else if (el.value.length <= 1) { el.closest('li').remove(); }});
-			el.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
-			el.removeAttribute('disabled');
-			el.focus();
-			el.setSelectionRange(el.value.length, el.value.length + 1);
-		}
+			const patchList = async (boardId, listId, data, callback) => {
+				const response = await fetch(`/api/board/${boardId}/list/${listId}`, {
+					method: 'PATCH',
+					mode: 'cors',
+					headers: {
+					  'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ listId: data })
+				});
+				if (response.ok && callback) {
+					await callback();
+				}
+			};
 
-		const removeDragOverClass = () => Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
-		const removeEmptyLists = () => Array.from(document.querySelectorAll('ul > button:last-child')).forEach(a => a.parentNode.remove());
+			const patchTask = async (id, data, callback) => {
+				const response = await fetch(`/api/task/${id}`, {
+					method: 'PATCH',
+					mode: 'cors',
+					headers: {
+					  'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(data)
+				});
+				if (response.ok && callback) {
+					await callback();
+				}
+			};
 
-		let textareaChanged = false;
-		let offsetX = 0;
-		let offsetY = 0;
-		let relX = 0;
-		let relY = 0;
+			const postTask = async (data, callback) => {
+				const response = await fetch(`/api/task`, {
+					method: 'POST',
+					mode: 'cors',
+					headers: {
+					  'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(data)
+				});
+				if (response.ok && callback) {
+					const task = await response.json();
+					callback(task);
+				}
+			};
 
-		init();
-	</script>
+			const init = async () => {
+				const boardId = getBoardId();
+				const tasks = await getTasks(boardId);
+				setupHeader(boardId);
+				setupBoard(tasks);
+				setupAppScrolling();
+
+				const onResize = () => Array.from(document.querySelectorAll('textarea')).forEach(a => autosize(a));
+				window.addEventListener('resize', onResize);
+				onResize();
+			};
+
+			const setupAppScrolling = () => {
+				const app = document.querySelector('#app');
+				app.addEventListener('mousedown', (e) => {
+					if (e.button === 0) {
+						const left = app.scrollLeft;
+						const x = e.clientX;
+						const appMouseMove = (ev) => app.scrollLeft = left - (ev.clientX - x);
+						const appMouseUp = () => { app.removeEventListener('mousemove', appMouseMove); app.removeEventListener('mouseup', appMouseUp); }
+						app.addEventListener('mousemove', appMouseMove);
+						app.addEventListener('mouseup', appMouseUp);
+					}
+				});
+			};
+
+			const setupBoard = (tasks) => {
+				if (tasks && tasks.length) {
+					const lists = tasks.filter((a, i, b) => b.findIndex(c => c.listId === a.listId) === i).map(a => a.listId).filter(a => a).sort();
+					lists.forEach(createList);
+					tasks.sort((a, b) => a.priority - b.priority);
+					tasks.forEach(createTask);
+				}
+				// createList();
+			};
+
+			const setupHeader = (boardId) => document.querySelector('header').innerHTML = boardId;
+
+			const createList = (listId) => {
+				const ul = document.createElement('ul');
+				ul.setAttribute('id', formatId(listId));
+				ul.setAttribute('data-id', listId);
+
+				const createListTitle = () => {
+					const inputWrapper = document.createElement('span');
+					const input = document.createElement('input');
+					input.setAttribute('type', 'text');
+					input.disabled = true;
+					input.value = listId;
+					inputWrapper.addEventListener('dblclick', (e) => {
+						if (!document.activeElement.isEqualNode(input)) {
+							e.stopPropagation();
+							e.stopImmediatePropagation();
+							e.preventDefault();
+							input.disabled = false;
+							input.focus();
+							input.setSelectionRange(input.value.length, input.value.length + 1);
+						}
+					});
+					const updateList = (newId) => {
+						updateListId(listId, newId);
+						sortList();
+					};
+					input.addEventListener('blur', () => { input.disabled = true; if (inputChanged && input.value.length > 0) { patchList(getBoardId(), listId, input.value, () => updateList(input.value)) } });
+					input.addEventListener('input', (e) => { inputChanged = true; });
+					inputWrapper.appendChild(input);
+					ul.appendChild(inputWrapper);
+				};
+
+				const createListAddButton = () => {
+					const button = document.createElement('button');
+					button.setAttribute('data-id', listId);
+					button.textContent = '+ add task';
+					button.addEventListener('click', (e) => {
+						e.stopPropagation();
+						e.stopImmediatePropagation();
+						e.preventDefault();
+						createTask({ listId, task: ' ', id: 'new', priority: 9999 });
+						enableInput('new', ul.querySelector('li[data-id="new"] > textarea'));
+					});
+					ul.appendChild(button);
+				};
+
+				createListTitle();
+				createListAddButton();
+				document.querySelector('#app').appendChild(ul);
+			};
+
+			const createTask = ({ listId = 'new', task, images = '', id, priority }, i) => {
+				if (!listId) { listId = 'new' }
+				const li = document.createElement('li');
+				li.setAttribute('data-id', id);
+				li.setAttribute('data-priority', priority);
+				li.addEventListener('mousedown', handleMouseDown);
+
+				const textarea = document.createElement('textarea');
+				textarea.textContent = task;
+				textarea.disabled = true;
+				li.appendChild(textarea);
+
+				const deleteBtn = document.createElement('button');
+				deleteBtn.textContent = 'x';
+				deleteBtn.addEventListener('click', () => deleteTask(id));
+				li.appendChild(deleteBtn);
+
+				const imageArray = images.split(',');
+				imageArray.forEach(src => {
+					if (src) {
+						const img = document.createElement('img');
+						img.src = src;
+						li.appendChild(img);
+					}
+				});
+
+				if (listId === 'new' && !document.querySelector(`#${formatId(listId)}`)) {
+					createList(listId);
+				}
+
+				document.querySelector(`#${formatId(listId)}`).appendChild(li);
+			};
+
+			const autosize = (el) => {
+				el.style.height = '5px';
+				el.style.height = (el.scrollHeight) + 'px';
+			};
+
+			const formatId = (id) => {
+				id = id.replaceAll(' ', '_');
+				id = id.replaceAll('-', '_');
+				id = id.replaceAll('.', '_');
+				return `id${id}`;
+			};
+
+			const handleMouseDown = (e) => {
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				e.preventDefault();
+				if (e.button === 0 && e.detail === 2) {
+					handleDoubleClick(e);
+				} else if (e.button === 0 && e.detail === 1 && e.target.tagName === 'BUTTON') {
+					const li = e.currentTarget;
+					deleteTask(li.getAttribute('data-id'), () => {
+						li.remove();
+						removeEmptyLists();
+					});
+				} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
+					e.currentTarget.setAttribute('class', 'dragging');
+
+					const rect = e.currentTarget.getBoundingClientRect();
+					offsetX = rect.left;
+					offsetY = rect.top;
+					relX = e.clientX - rect.left;
+					relY = e.clientY - rect.top;
+
+					window.addEventListener('mousemove', handleMouseMove);
+					window.addEventListener('mouseup', handleMouseUp);
+				}
+			};
+
+			const handleMouseMove = (e) => {
+				const dragging = document.querySelector('.dragging');
+				const rect = dragging.getBoundingClientRect();
+				const x = e.clientX - offsetX - relX;
+				const y = e.clientY - offsetY - relY;
+				const dragOver = document.querySelector('li:hover');
+				removeDragOverClass();
+				if (dragOver) {
+					dragOver.setAttribute('class', 'drag-over');
+				}
+				dragging.setAttribute('style', `transform: translate(${x}px, ${y}px) rotate(3deg)`);
+			};
+
+			const handleMouseUp = (e) => {
+				const dragging = document.querySelector('.dragging');
+				const dragOver = document.querySelector('li:hover');
+				if (dragOver) {
+					const dragOverList = document.querySelector('ul:hover');
+					const patchData = {};
+					const listId = dragOverList.getAttribute('data-id');
+					const currentListId = dragging.closest('ul').getAttribute('data-id');
+					if (currentListId !== listId) {
+						patchData.listId = listId;
+					}
+
+					const children = Array.from(dragOverList.childNodes);
+					const dragOverIndex = children.findIndex(a => a.className.indexOf('drag-over') > -1);
+					if (dragOverIndex >= children.length - 1) {
+						patchData.priority = `${Number(dragOver.getAttribute('data-priority')) + 1}`;
+					} else {
+						patchData.priority = `${(Number(dragOver.getAttribute('data-priority')) + Number(children[dragOverIndex + 1].getAttribute('data-priority'))) / 2}`;
+					}
+
+					if (Object.keys(patchData).length) {
+						patchTask(dragging.getAttribute('data-id'), patchData, () => {
+							dragOverList.insertBefore(dragging, dragOverList.childNodes[dragOverIndex + 1]);
+							if (patchData.priority) {
+								dragging.setAttribute('data-priority', patchData.priority);
+							}
+							removeEmptyLists();
+						});
+					}
+				}
+				dragging.removeAttribute('style');
+				dragging.removeAttribute('class');
+				dragging.closest('ul').removeAttribute('style');
+				removeDragOverClass();
+
+				window.removeEventListener('mousemove', handleMouseMove);
+				window.removeEventListener('mouseup', handleMouseUp);
+			};
+
+			const handleDoubleClick = (e) => {
+				const id = e.currentTarget.getAttribute('data-id');
+				const textarea = e.currentTarget.querySelector('textarea');
+				enableInput(id, textarea);
+			};
+
+			const enableInput = (id, el) => {
+				const update = () => {
+					if (id === 'new') {
+						const priority = `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}`;
+						postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority }, (json) => {
+							el.parentNode.setAttribute('data-id', json.id);
+						});
+					} else {
+						patchTask(id, { task: el.value });
+					}
+				};
+
+				el.addEventListener('blur', (e) => { el.disabled = true; if (textareaChanged) { textareaChanged = false; update(); } else if (el.value.length <= 1) { el.closest('li').remove(); }});
+				el.addEventListener('input', (e) => { textareaChanged = true; autosize(e.target); });
+				el.removeAttribute('disabled');
+				el.focus();
+				el.setSelectionRange(el.value.length, el.value.length + 1);
+			}
+
+			const removeDragOverClass = () => Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
+			const removeEmptyLists = () => Array.from(document.querySelectorAll('ul > button:last-child')).forEach(a => a.parentNode.remove());
+			const updateListId = (listId, newId) => {
+				Array.from(document.querySelectorAll(`#${formatId(listId)}`)).forEach(a => a.setAttribute('id', formatId(newId)));
+				Array.from(document.querySelectorAll(`*[data-id="${listId}"]`)).forEach(a => a.setAttribute('data-id', newId));
+			}
+
+			const sortList = () => {
+				const app = document.querySelector('#app');
+				[...app.children]
+					.sort((a, b) => a.getAttribute('data-id') > b.getAttribute('data-id') ? 1 : -1)
+					.forEach(a => app.appendChild(a));
+
+			};
+
+			let textareaChanged = false;
+			let inputChanged = false;
+			let offsetX = 0;
+			let offsetY = 0;
+			let relX = 0;
+			let relY = 0;
+
+			init();
+		</script>
+	</body>
 </html>

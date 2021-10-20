@@ -9,6 +9,7 @@ import (
 	_ "log"
 	"fmt"
     "strings"
+	"net/url"
 )
 
 type Task struct {
@@ -46,6 +47,7 @@ func main() {
 	app.Delete("/api/task/:id", func(c *fiber.Ctx) error { return deleteTask(c, db) })
 	app.Post("/api/task", func(c *fiber.Ctx) error { return postTask(c, db) })
 	app.Patch("/api/task/:id", func(c *fiber.Ctx) error { return patchTask(c, db) })
+	app.Patch("/api/board/:boardId/list/:listId", func(c *fiber.Ctx) error { return patchList(c, db) })
 	app.Get("/api/tasks/:boardId", func(c *fiber.Ctx) error { return getTasksFromBoard(c, db) })
 	app.Listen(":8080")
 }
@@ -84,6 +86,32 @@ func postTask(c *fiber.Ctx, db *sql.DB) error {
 
 	body.Id = newId.String()
 	return c.Status(fiber.StatusOK).JSON(body)
+}
+
+func patchList(c *fiber.Ctx, db *sql.DB) error {
+	listId, err3 := url.QueryUnescape(c.Params("listId"))
+	checkErr(err3, "cannot decode listId", false)
+	boardId, err4 := url.QueryUnescape(c.Params("boardId"))
+	checkErr(err4, "cannot decode boardId", false)
+
+	body := new(Task)
+	if err := c.BodyParser(body); err != nil {
+		checkErr(err, "cannot parse body", false)
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	values := []string{}
+	if body.ListId != "" {
+	    values = append(values, fmt.Sprintf("listId = '%s'", body.ListId))
+	}
+	result := strings.Join(values, ", ")
+
+	if result != "" {
+		_, err2 := db.Exec(fmt.Sprintf("update tasks set %s where listId = '%s' and boardId = '%s'", result, listId, boardId))
+		checkErr(err2, "cannot update list", false)
+	}
+
+	return c.SendStatus(fiber.StatusOK)
 }
 
 func patchTask(c *fiber.Ctx, db *sql.DB) error {
