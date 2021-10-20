@@ -24,8 +24,7 @@
 				display: flex;
 				height: calc(100% - 30px);
 				margin: 0 30px;
-				overflow-x: auto;
-				overflow-y: hidden;
+				overflow: auto;
 				width: calc(100% - 60px);
 			}
 			#app > button {
@@ -139,7 +138,6 @@
 				flex-shrink: 0;
 				list-style-position: outside;
 				margin-right: 20px;
-				max-height: calc(100% - 30px);
 				padding: 40px 10px;
 				position: relative;
 				width: 18%;
@@ -407,6 +405,7 @@
 					offsetY = rect.top;
 					relX = e.clientX - rect.left;
 					relY = e.clientY - rect.top;
+					offsetScrollTop = document.querySelector('#app').scrollTop;
 
 					window.addEventListener('mousemove', handleMouseMove);
 					window.addEventListener('mouseup', handleMouseUp);
@@ -415,10 +414,12 @@
 
 			const handleMouseMove = (e) => {
 				const dragging = document.querySelector('.dragging');
+				const currentOffsetScrollTop = offsetScrollTop - document.querySelector('#app').scrollTop;
 				const rect = dragging.getBoundingClientRect();
 				const x = e.clientX - offsetX - relX;
-				const y = e.clientY - offsetY - relY;
+				const y = e.clientY - offsetY - relY - currentOffsetScrollTop;
 				const dragOver = document.querySelector('li:hover');
+
 				removeDragOverClass();
 				if (dragOver) {
 					dragOver.setAttribute('class', 'drag-over');
@@ -511,6 +512,7 @@
 			let offsetY = 0;
 			let relX = 0;
 			let relY = 0;
+			let offsetScrollTop = 0;
 
 			init();
 		</script>
