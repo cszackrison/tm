@@ -33,6 +33,7 @@
 				color: #DDE1E5;
 				flex-shrink: 0;
 				font-size: 24px;
+				min-width: 260px;
 				padding: 20px 10px;
 				margin: 16px 20px 0 0;
 				width: 18%;
@@ -140,6 +141,7 @@
 				flex-shrink: 0;
 				list-style-position: outside;
 				margin-right: 20px;
+				min-width: 260px;
 				padding: 0 10px 40px;
 				position: relative;
 				width: 18%;
@@ -166,7 +168,7 @@
 		<div id='app'></div>
 		<script type="text/javascript">
 			/* TODO:
-				- fix extra long lists
+				- fix scrolling (mousedown) when release outside of #app
 			*/
 
 			const getBoardId = () => {
