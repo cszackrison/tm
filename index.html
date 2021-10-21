@@ -2,8 +2,8 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>Task Manager</title>
-		<meta name="description" content="Task Manager">
+		<title>tm</title>
+		<meta name="description" content="tm">
 		<style>
 			* {
 				box-sizing: border-box;
@@ -167,10 +167,6 @@
 		<header></header>
 		<div id='app'></div>
 		<script type="text/javascript">
-			/* TODO:
-				- fix scrolling (mousedown) when release outside of #app
-			*/
-
 			const getBoardId = () => {
 				const params = new URLSearchParams(document.location.search.substring(1));
 				return params.get("boardId");
@@ -273,6 +269,7 @@
 						const appMouseUp = () => { app.removeEventListener('mousemove', appMouseMove); app.removeEventListener('mouseup', appMouseUp); }
 						app.addEventListener('mousemove', appMouseMove);
 						app.addEventListener('mouseup', appMouseUp);
+						app.addEventListener('mouseleave', appMouseUp);
 					}
 				});
 			};
