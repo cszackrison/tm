@@ -1,4 +1,4 @@
-module github.com/cszackrison/go-rest-api
+module github.com/cszackrison/tm
 
 go 1.17
 
