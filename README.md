@@ -1,4 +1,5 @@
-# Task Manager
+# tm
+tm is a minimalist task manager. It is extremely simple. It uses go, html, sqlite. 
 
 ## Usage:
 
