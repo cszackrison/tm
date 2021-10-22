@@ -14,7 +14,6 @@ import (
 )
 
 type Task struct {
-	Images string `json:"images"`
 	Task string `json:"task"`
 	BoardId string `json:"boardId"`
 	ListId string `json:"listId"`
@@ -33,19 +32,19 @@ func main() {
 	checkErr(err, "", true)
 	defer db.Close()
 
-	_, err = db.Exec("create table if not exists tasks (id text not null primary key, boardId text, listId text, task text, images text, priority real)")
+	_, err = db.Exec("create table if not exists tasks (id text not null primary key, boardId text, listId text, task text, priority real)")
 	checkErr(err, "", true)
 
 	if *dbPath == MEM {
 		_, err = db.Exec(`insert into tasks values
-			('1', 'hello', 'a', 'world', 'https://via.placeholder.com/150', '1'),
-			('2', 'hello', 'b', 'scott', '', '2'),
-			('3', 'hello', 'c', 'scott', 'https://via.placeholder.com/300', '3'),
-			('4', 'hello', 'd', 'scott', '', '4'),
-			('5', 'hello', 'e', 'awerott', '', '5'),
-			('6', 'hello', 'f', 'sco awer awer tt', '', '6'),
-			('7', 'hello', 'g', 'scott awwerawerawer', '', '7'),
-			('8', 'world', 'h', 'awesome', '', '8')
+			('1', 'hello', 'a', 'world', '1'),
+			('2', 'hello', 'b', 'scott', '2'),
+			('3', 'hello', 'c', 'scott', '3'),
+			('4', 'hello', 'd', 'scott', '4'),
+			('5', 'hello', 'e', 'awerott', '5'),
+			('6', 'hello', 'f', 'sco awer awer tt', '6'),
+			('7', 'hello', 'g', 'scott awwerawerawer', '7'),
+			('8', 'world', 'h', 'awesome', '8')
 		`)
 		checkErr(err, "", true)
 	}
@@ -90,7 +89,7 @@ func postTask(c *fiber.Ctx, db *sql.DB) error {
 	}
 
 	newId := uuid.New()
-	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?, ?)", newId, body.BoardId, body.ListId, body.Task, body.Images, body.Priority)
+	_, err := db.Exec("insert into tasks values (?, ?, ?, ?, ?)", newId, body.BoardId, body.ListId, body.Task, body.Priority)
 	checkErr(err, "cannot insert task into board", false)
 
 	body.Id = newId.String()
@@ -151,7 +150,7 @@ func getTasksFromBoard(c *fiber.Ctx, db *sql.DB) error {
 	var tasks []Task
 	var task Task
 	for rows.Next() {
-		rows.Scan(&task.Id, &task.BoardId, &task.ListId, &task.Task, &task.Images, &task.Priority)
+		rows.Scan(&task.Id, &task.BoardId, &task.ListId, &task.Task, &task.Priority)
 		tasks = append(tasks, task)
 	}
 
