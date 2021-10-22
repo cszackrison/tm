@@ -324,6 +324,7 @@
 							createListAddButton();
 						}
 					};
+					input.addEventListener('mousedown', (e) => e.stopPropagation());
 					input.addEventListener('keypress', (e) => { if (!/[0-9a-zA-Z]/i.test(e.key)) { e.preventDefault(); } });
 					input.addEventListener('blur', () => { input.disabled = true; if (inputChanged && input.value.length > 0) { patchList(getBoardId(), listId, input.value, () => updateList(input.value)) } });
 					input.addEventListener('input', (e) => { inputChanged = true; });
@@ -399,7 +400,7 @@
 						li.remove();
 						removeEmptyLists();
 					});
-				} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('textarea').hasAttribute('disabled')) {
+				} else if (e.button === 0 && e.detail === 1 && e.currentTarget.querySelector('*:disabled').hasAttribute('disabled')) {
 					e.currentTarget.setAttribute('class', 'dragging');
 
 					const rect = e.currentTarget.getBoundingClientRect();
@@ -470,7 +471,7 @@
 
 			const handleDoubleClick = (e) => {
 				const id = e.currentTarget.getAttribute('data-id');
-				const textarea = e.currentTarget.querySelector('textarea');
+				const textarea = e.currentTarget.querySelector('*:disabled');
 				enableInput(id, textarea);
 			};
 
@@ -508,6 +509,18 @@
 				el.setSelectionRange(el.value.length, el.value.length + 1);
 			}
 
+			const parseTask = (str) => {
+				const temp = document.createElement('DIV')
+				temp.innerHTML = str;
+				const cleanStr = temp.textContent;
+				const regexImg = /(https?:\/\/.*\.(?:jpg|jpeg|png|gif|svg))/ig;
+				if (cleanStr.match(regexImg)) {
+					str = cleanStr.replace(regexImg, (match, p1, offset, string) => {
+						return `<img src="${match}" />`;
+					});
+				}
+				return str
+			};
 			const removeDragOverClass = () => Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
 			const removeEmptyLists = () => Array.from(document.querySelectorAll('ul > button:last-child')).forEach(a => a.parentNode.remove());
 
