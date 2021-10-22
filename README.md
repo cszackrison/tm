@@ -13,8 +13,8 @@ Options can be given using the following format: `KEY=VALUE`.
 
 | Name | Key | Value | Description |
 |------|-----|----------|-------------|
-| Database Path | `db` | `string` | The path to the sqlite database  default is `:memory:` | 
-| Port | `port` | `string` | The port to use  default is `:8080` |
+| Database Path | `db` | `string` | The path to the sqlite database.<br/>default is `:memory:` | 
+| Port | `port` | `string` | The port to use.<br/>default is `:8080` |
 
 
 ## Development
