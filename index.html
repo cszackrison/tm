@@ -324,6 +324,7 @@
 							createListAddButton();
 						}
 					};
+					input.addEventListener('keypress', (e) => { if (!/[0-9a-zA-Z]/i.test(e.key)) { e.preventDefault(); } });
 					input.addEventListener('blur', () => { input.disabled = true; if (inputChanged && input.value.length > 0) { patchList(getBoardId(), listId, input.value, () => updateList(input.value)) } });
 					input.addEventListener('input', (e) => { inputChanged = true; });
 					inputWrapper.appendChild(input);
@@ -355,7 +356,7 @@
 				li.addEventListener('mousedown', handleMouseDown);
 
 				const textarea = document.createElement('textarea');
-				textarea.textContent = task;
+				textarea.textContent = decodeURIComponent(task);
 				textarea.disabled = true;
 				li.appendChild(textarea);
 
@@ -477,11 +478,11 @@
 				const update = () => {
 					if (id === 'new') {
 						const priority = el.closest('ul').querySelector('li:nth-last-child(2)') ? `${Number(el.closest('ul').querySelector('li:nth-last-child(2)').getAttribute('data-priority')) + 1}` : '99999';
-						postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: el.value, priority }, (json) => {
+						postTask({ listId: el.closest('ul').getAttribute('data-id'), boardId: getBoardId(), task: encodeURIComponent(el.value), priority }, (json) => {
 							el.parentNode.setAttribute('data-id', json.id);
 						});
 					} else {
-						patchTask(id, { task: el.value });
+						patchTask(id, { task: encodeURIComponent(el.value) });
 					}
 				};
 

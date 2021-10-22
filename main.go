@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	_ "log"
 	"fmt"
-    "strings"
+    _ "strings"
 	"net/url"
 	"flag"
 )
@@ -28,7 +28,6 @@ func main() {
 	dbPath := flag.String("db", MEM, "a path to a sqlite db")
 	port := flag.String("port", ":8080", "a port to run on")
 	flag.Parse()
-	fmt.Println(*dbPath)
 
     db, err := sql.Open("sqlite3", *dbPath)
 	checkErr(err, "", true)
@@ -39,14 +38,14 @@ func main() {
 
 	if *dbPath == MEM {
 		_, err = db.Exec(`insert into tasks values
-			('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', '1'),
-			('2', 'hello', 'list 1', '2. scott', '', '2'),
-			('3', 'hello', 'list 1a', '3. scott', 'https://via.placeholder.com/300', '3'),
-			('4', 'hello', 'list 2', '4. scott', '', '4'),
-			('5', 'hello', 'list 3', '5. scawer awerott', '', '5'),
-			('6', 'hello', 'list 4', '6. sco awer awer tt', '', '6'),
-			('7', 'hello', 'list 5', 'scott awwerawerawer', '', '7'),
-			('8', 'test', 'list 2', 'awesome', '', '8')
+			('1', 'hello', 'a', 'world', 'https://via.placeholder.com/150', '1'),
+			('2', 'hello', 'b', 'scott', '', '2'),
+			('3', 'hello', 'c', 'scott', 'https://via.placeholder.com/300', '3'),
+			('4', 'hello', 'd', 'scott', '', '4'),
+			('5', 'hello', 'e', 'awerott', '', '5'),
+			('6', 'hello', 'f', 'sco awer awer tt', '', '6'),
+			('7', 'hello', 'g', 'scott awwerawerawer', '', '7'),
+			('8', 'world', 'h', 'awesome', '', '8')
 		`)
 		checkErr(err, "", true)
 	}
@@ -73,7 +72,7 @@ func checkErr(err error, msg string, shouldPanic bool) {
 
 func deleteTask(c *fiber.Ctx, db *sql.DB) error {
 	var id = c.Params("id")
-	_, err2 := db.Exec(fmt.Sprintf("delete from tasks where id = '%s'", id))
+	_, err2 := db.Exec("delete from tasks where id = ?", id)
 	checkErr(err2, "cannot delete task", false)
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -110,14 +109,8 @@ func patchList(c *fiber.Ctx, db *sql.DB) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	values := []string{}
 	if body.ListId != "" {
-	    values = append(values, fmt.Sprintf("listId = '%s'", body.ListId))
-	}
-	result := strings.Join(values, ", ")
-
-	if result != "" {
-		_, err2 := db.Exec(fmt.Sprintf("update tasks set %s where listId = '%s' and boardId = '%s'", result, listId, boardId))
+		_, err2 := db.Exec("update tasks set listId = ? where listId = ? and boardId = ?", body.ListId, listId, boardId)
 		checkErr(err2, "cannot update list", false)
 	}
 
@@ -133,21 +126,17 @@ func patchTask(c *fiber.Ctx, db *sql.DB) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	values := []string{}
 	if body.ListId != "" {
-	    values = append(values, fmt.Sprintf("listId = '%s'", body.ListId))
+		_, err2 := db.Exec("update tasks set listId = ? where id = ?", body.ListId, id)
+		checkErr(err2, "cannot update task listId", false)
 	}
 	if body.Task != "" {
-	    values = append(values, fmt.Sprintf("task = '%s'", body.Task))
+		_, err2 := db.Exec("update tasks set task = ? where id = ?", body.Task, id)
+		checkErr(err2, "cannot update task text", false)
 	}
 	if body.Priority != "" {
-	    values = append(values, fmt.Sprintf("priority = '%s'", body.Priority))
-	}
-	result := strings.Join(values, ", ")
-
-	if result != "" {
-		_, err2 := db.Exec(fmt.Sprintf("update tasks set %s where id = '%s'", result, id))
-		checkErr(err2, "cannot update task", false)
+		_, err2 := db.Exec("update tasks set priority = ? where id = ?", body.Priority, id)
+		checkErr(err2, "cannot update task priority", false)
 	}
 
 	return c.SendStatus(fiber.StatusOK)
