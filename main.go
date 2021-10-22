@@ -10,6 +10,7 @@ import (
 	"fmt"
     "strings"
 	"net/url"
+	"flag"
 )
 
 type Task struct {
@@ -21,25 +22,34 @@ type Task struct {
 	Priority string `json:"priority"`
 }
 
+const MEM string = ":memory:";
+
 func main() {
-    db, err := sql.Open("sqlite3", ":memory:")
+	dbPath := flag.String("db", MEM, "a path to a sqlite db")
+	port := flag.String("port", ":8080", "a port to run on")
+	flag.Parse()
+	fmt.Println(*dbPath)
+
+    db, err := sql.Open("sqlite3", *dbPath)
 	checkErr(err, "", true)
 	defer db.Close()
 
-	_, err = db.Exec("create table tasks (id text not null primary key, boardId text, listId text, task text, images text, priority real)")
+	_, err = db.Exec("create table if not exists tasks (id text not null primary key, boardId text, listId text, task text, images text, priority real)")
 	checkErr(err, "", true)
 
-	_, err = db.Exec(`insert into tasks values
-		('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', '1'),
-		('2', 'hello', 'list 1', '2. scott', '', '2'),
-		('3', 'hello', 'list 1a', '3. scott', 'https://via.placeholder.com/300', '3'),
-		('4', 'hello', 'list 2', '4. scott', '', '4'),
-		('5', 'hello', 'list 3', '5. scawer awerott', '', '5'),
-		('6', 'hello', 'list 4', '6. sco awer awer tt', '', '6'),
-		('7', 'hello', 'list 5', 'scott awwerawerawer', '', '7'),
-		('8', 'test', 'list 2', 'awesome', '', '8')
-	`)
-	checkErr(err, "", true)
+	if *dbPath == MEM {
+		_, err = db.Exec(`insert into tasks values
+			('1', 'hello', 'list 1', '1. world', 'https://via.placeholder.com/150', '1'),
+			('2', 'hello', 'list 1', '2. scott', '', '2'),
+			('3', 'hello', 'list 1a', '3. scott', 'https://via.placeholder.com/300', '3'),
+			('4', 'hello', 'list 2', '4. scott', '', '4'),
+			('5', 'hello', 'list 3', '5. scawer awerott', '', '5'),
+			('6', 'hello', 'list 4', '6. sco awer awer tt', '', '6'),
+			('7', 'hello', 'list 5', 'scott awwerawerawer', '', '7'),
+			('8', 'test', 'list 2', 'awesome', '', '8')
+		`)
+		checkErr(err, "", true)
+	}
 
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{ AllowOrigins: "*", AllowHeaders: "Content-Type", }))
@@ -49,13 +59,13 @@ func main() {
 	app.Patch("/api/task/:id", func(c *fiber.Ctx) error { return patchTask(c, db) })
 	app.Patch("/api/board/:boardId/list/:listId", func(c *fiber.Ctx) error { return patchList(c, db) })
 	app.Get("/api/tasks/:boardId", func(c *fiber.Ctx) error { return getTasksFromBoard(c, db) })
-	app.Listen(":8080")
+	app.Listen(*port)
 }
 
 func checkErr(err error, msg string, shouldPanic bool) {
     if err != nil {
 		fmt.Println(err, msg)
-		if (shouldPanic) {
+		if shouldPanic {
 			panic(err)
 		}
     }
