@@ -1,5 +1,5 @@
 # tm
-tm is a minimalist task manager. It is extremely simple. It uses go, html, sqlite. It runs in the browser at port 8080.
+tm is a minimalist task manager. It is extremely simple and lightweight.
 
 ## Usage:
 
@@ -8,20 +8,22 @@ Build the binary, then run:
 ```
 $ ./tm -db=./tasks.db -port=:8080
 ```
+#### Command-line Options
+Options can be given using the following format: `KEY=VALUE`.
 
-#### options:
-```
--db=:memory:
--port=:8080
-```
+| Name | Key | Value | Description |
+|------|-----|----------|-------------|
+| Database Path | `db` | `string` | The path to the sqlite database  default is `:memory:` | 
+| Port | `port` | `string` | The port to use  default is `:8080` |
 
-### Test
+
+## Development
 Run this command and open `localhost:8080` in a browser.
 ```
 $ go run main.go
 ```
 
-### Build
+## Build
 ```
 $ go build
 ```
