@@ -17,9 +17,11 @@
 				width: 100%;
 			}
 			body {
+				padding: 30px 0;
+			}
+			body, button, input, textarea {
 				font-family: monospace;
 				letter-spacing: .2px;
-				padding: 30px 0;
 			}
 			#app {
 				align-items: flex-start;
@@ -74,7 +76,6 @@
 				background: linear-gradient(#EAEDF0 30px, #DDE1E5 90px);
 				border: none;
 				color: black;
-				font-family: serif;
 				font-size: 16px;
 				font-weight: bold;
 				left: 0;
@@ -111,7 +112,6 @@
 			li > div {
 				color: rgba(84, 84, 84);
 				overflow: hidden;
-				pointer-events: none;
 				text-overflow: ellipsis;
 				user-select: none;
 			}
@@ -136,7 +136,6 @@
 				background-color: #EAEDF0;
 				border: none;
 				cursor: pointer;
-				font-family: monospace;
 				font-size: 12px;
 				opacity: 0;
 				padding: 6px 10px;
@@ -399,9 +398,12 @@
 			};
 
 			const handleMouseDown = (e) => {
+				if (e.which !== 1) return;
 				stopAll(e);
 				if (e.button === 0 && e.detail === 2) {
 					handleDoubleClick(e);
+				} else if (e.detail === 1 && e.target.tagName === 'A') {
+					window.open(e.target.href, '_blank');
 				} else if (e.button === 0 && e.detail === 1 && e.target.tagName === 'BUTTON') {
 					const li = e.currentTarget;
 					deleteTask(li.getAttribute('data-id'), () => {
@@ -524,14 +526,24 @@
 			const parseTask = (str) => {
 				const temp = document.createElement('DIV')
 				temp.innerHTML = str;
-				const cleanStr = temp.textContent;
+				let cleanStr = temp.textContent;
+				const imageArray = ['jpg', 'jpeg', 'png', 'gif', 'svg'];
 				const regexImg = /(https?:\/\/.*\.(?:jpg|jpeg|png|gif|svg))/ig;
-				if (cleanStr.match(regexImg)) {
-					str = cleanStr.replace(regexImg, (match, p1, offset, string) => {
-						return `<img src="${match}" />`;
-					});
-				}
-				return str
+				const regexUrl = /(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])/igm;
+				const regexNewline = /\n/g;
+				cleanStr = cleanStr.replace(regexImg, (match, p1, offset, string) => {
+					return `<img src="${match}" />`;
+				});
+				cleanStr = cleanStr.replace(regexUrl, (match, p1, offset, string) => {
+					if (imageArray.every(a => match.indexOf(a) === -1)) {
+						return `<a href="${match}">${match}</a>`;
+					}
+					return match;
+				});
+				cleanStr = cleanStr.replace(regexNewline, (match, p1, offset, string) => {
+					return `<br />`;
+				});
+				return cleanStr;
 			};
 			const removeDragOverClass = () => Array.from(document.querySelectorAll('.drag-over')).forEach(a => a.removeAttribute('class'));
 			const removeEmptyLists = () => Array.from(document.querySelectorAll('ul > button:last-child')).forEach(a => a.parentNode.remove());
