@@ -58,6 +58,7 @@
 			}
 			header {
 				background-color: #EAEDF0;
+				font-size: 16px;
 				font-weight: bold;
 				margin: 0 30px;
 				padding: 10px;
@@ -532,7 +533,7 @@
 				const regexUrl = /(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])/igm;
 				const regexNewline = /\n/g;
 				cleanStr = cleanStr.replace(regexImg, (match, p1, offset, string) => {
-					return `<img src="${match}" />`;
+					return `<img src="${match.trim().replaceAll(' ', '%20')}" />`;
 				});
 				cleanStr = cleanStr.replace(regexUrl, (match, p1, offset, string) => {
 					if (imageArray.every(a => match.indexOf(a) === -1)) {
